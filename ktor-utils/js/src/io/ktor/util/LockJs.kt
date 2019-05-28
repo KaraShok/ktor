@@ -4,21 +4,22 @@
 
 package io.ktor.util
 
+import kotlinx.io.core.*
+
 @InternalAPI
-actual class Lock actual constructor() {
+actual class Lock : Closeable {
     actual fun lock() {}
     actual fun unlock() {}
+    override fun close() {}
 }
 
 @InternalAPI
-actual class ReadWriteLock actual constructor() {
+actual class ReadWriteLock : Closeable {
     actual fun readLock(): LockTicket = LockTicketInstance
     actual fun writeLock(): LockTicket = LockTicketInstance
+    override fun close() {}
 }
 
-private val LockTicketInstance = LockTicket()
-
-@InternalAPI
-actual class LockTicket {
-    actual fun unlock() {}
+private val LockTicketInstance = object : LockTicket {
+    override fun close() {}
 }

@@ -6,14 +6,22 @@
 
 package io.ktor.util
 
+import kotlinx.io.core.*
+
 @InternalAPI
-expect class Lock() {
+expect class Lock() : Closeable {
     fun lock()
     fun unlock()
 }
 
 @InternalAPI
-inline fun <R> Lock.use(block: () -> R): R {
+expect class ReadWriteLock() : Closeable {
+    fun readLock(): LockTicket
+    fun writeLock(): LockTicket
+}
+
+@InternalAPI
+inline fun <R> Lock.useLocked(block: () -> R): R {
     try {
         lock()
         return block()
@@ -22,12 +30,4 @@ inline fun <R> Lock.use(block: () -> R): R {
     }
 }
 
-@InternalAPI
-expect class ReadWriteLock() {
-    fun readLock(): LockTicket
-    fun writeLock(): LockTicket
-}
-
-expect class LockTicket {
-    fun unlock()
-}
+interface LockTicket : Closeable

@@ -8,6 +8,7 @@ import io.ktor.http.*
 import io.ktor.util.*
 import io.ktor.util.date.*
 import kotlinx.atomicfu.*
+import kotlinx.io.core.*
 import kotlin.math.*
 
 /**
@@ -18,16 +19,16 @@ class AcceptAllCookiesStorage : CookiesStorage {
     private val oldestCookie: AtomicLong = atomic(0L)
     private val mutex = Lock()
 
-    override suspend fun get(requestUrl: Url): List<Cookie> = mutex.use {
+    override suspend fun get(requestUrl: Url): List<Cookie> = mutex.useLocked {
         val date = GMTDate()
         if (date.timestamp >= oldestCookie.value) cleanup(date.timestamp)
 
         return container.filter { it.matches(requestUrl) }
     }
 
-    override suspend fun addCookie(requestUrl: Url, cookie: Cookie): Unit = mutex.use {
+    override suspend fun addCookie(requestUrl: Url, cookie: Cookie): Unit = mutex.useLocked {
         with(cookie) {
-            if (name.isBlank()) return@use
+            if (name.isBlank()) return@useLocked
         }
 
         container.removeAll { it.name == cookie.name && it.matches(requestUrl) }
@@ -37,6 +38,10 @@ class AcceptAllCookiesStorage : CookiesStorage {
                 oldestCookie.value = expires
             }
         }
+    }
+
+    override fun close() {
+        mutex.close()
     }
 
     private fun cleanup(timestamp: Long) {

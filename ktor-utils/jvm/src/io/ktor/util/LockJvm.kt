@@ -6,36 +6,52 @@
 
 package io.ktor.util
 
+import kotlinx.io.core.*
 import java.util.concurrent.locks.*
 import java.util.concurrent.locks.Lock
 
 @InternalAPI
-actual class Lock {
+actual class Lock : Closeable {
     private val lock = ReentrantLock()
 
     actual fun lock() {
         lock.lock()
     }
+
     actual fun unlock() {
         lock.unlock()
+    }
+
+    override fun close() {
     }
 }
 
 @InternalAPI
-actual class ReadWriteLock actual constructor() {
+actual class ReadWriteLock : Closeable {
+
     private val lock = ReentrantReadWriteLock()
 
-    actual fun readLock(): LockTicket = LockTicket(lock.readLock())
+    actual fun readLock(): LockTicket = object : LockTicket {
+        val current = lock.readLock().apply {
+            lock()
 
-    actual fun writeLock(): LockTicket = LockTicket(lock.writeLock())
-}
-
-actual class LockTicket(private val lock: Lock) {
-    init {
-        lock.lock()
+        }
+        override fun close() {
+            current.unlock()
+        }
     }
 
-    actual fun unlock() {
-        lock.unlock()
+    actual fun writeLock(): LockTicket = object : LockTicket {
+        val current = lock.writeLock().apply {
+            lock()
+        }
+
+        override fun close() {
+            current.unlock()
+        }
     }
+
+    override fun close() {}
 }
+
+
